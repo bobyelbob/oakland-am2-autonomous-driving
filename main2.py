@@ -5,7 +5,21 @@ import math
 
 video = cv2.VideoCapture(0)
 video.set(cv2.CAP_PROP_FRAME_WIDTH, 320) # set width to 320 px
-video.set(cv2.CAP_PROP_FRAME_HEIGHT,240) # set height to 240 px
+video.set(cv2.CAP_PROP_FRAME_HEIGHT, 240) # set height to 240 px
+
+height = 240
+width = 320
+frame_size = (320,240)
+# Initialize video writer object
+output = cv2.VideoWriter('./output_video_from_file.mp4', 
+                         cv2.VideoWriter_fourcc(*'XVID'), 
+                         20, frame_size)
+
+
+vertices = np.array([[[0,240-65], [110,96], [320-110,96],
+                    [320, 240-65]]], dtype=np.int32)
+# vertices = np.array([[[0,240], [120,96], [320-120,96],
+#                     [320, 240]]], dtype=np.int32)
 
 def grayscale(frame):
     # Applies grayscale transorm to an image
@@ -20,6 +34,26 @@ def canny(frame, low_threshold, high_threshold):
     return cv2.Canny(frame, low_threshold, high_threshold)
 
 def region_of_interest(frame, vertices):
+    # Defining a blank mask to start with
+    mask=np.zeros_like(frame)
+    
+    # Defining a three channel or one channel color to fill the mask with 
+    # depending on the input image
+    
+    if len(frame.shape) > 2:
+        channel_count = frame.shape[2]
+        ignore_mask_color = (255,) * channel_count
+    else:
+        ignore_mask_color = 255
+        
+    # Filling pixels inside the polygon defined in 'vertices' with the fill color
+    cv2.fillPoly(mask, vertices, ignore_mask_color)
+    
+    # Returning the image only where mask pixels are nonzero
+    masked_image = cv2.bitwise_and(frame, mask)
+    return masked_image
+
+def region_of_interest_2(frame, vertices):
     # Defining a region of interest mask
     mask=np.zeros_like(frame)
     
@@ -64,8 +98,10 @@ def average_slope_intercept(frame, line_segments):
     if line_segments is None:
         print("no line segment detected")
         return lane_lines
-
-    height, width,_ = frame.shape
+    
+    # height, width,_ = frame.shape
+    height = 240
+    width = 320
     left_fit = []
     right_fit = []
     boundary = 1/3
@@ -105,7 +141,9 @@ def average_slope_intercept(frame, line_segments):
     return lane_lines
 
 def make_points(frame, line):
-    height, width, _ = frame.shape
+    # height, width, _ = frame.shape
+    height = 240
+    width = 320
     slope, intercept = line
     y1 = height  # bottom of the frame
     y2 = int(y1 / 2)  # make points from middle of the frame down
@@ -132,7 +170,9 @@ def display_lines(frame, lines, line_color=(0, 255, 0), line_width=6): # line co
 
 def get_steering_angle(frame, lane_lines):
 
-    height, width, _ = frame.shape
+    # height, width, _ = frame.shape
+    height = 240
+    width = 320
 
     if len(lane_lines) == 2: # if two lane lines are detected
         _, _, left_x2, _ = lane_lines[0][0] # extract left x2 from lane_lines array
@@ -160,7 +200,10 @@ def get_steering_angle(frame, lane_lines):
 def display_heading_line(frame, steering_angle, line_color=(0, 0, 255), line_width=5):
 
     heading_image = np.zeros_like(frame)
-    height, width, _ = frame.shape
+    # height, width, _ = frame.shape
+    height = 240
+    width = 320
+
 
     steering_angle_radian = steering_angle / 180.0 * math.pi
     x1 = int(width / 2)
@@ -172,23 +215,59 @@ def display_heading_line(frame, steering_angle, line_color=(0, 0, 255), line_wid
 
     heading_image = cv2.addWeighted(frame, 0.8, heading_image, 1, 1)
 
-    return heading_image    
+    return heading_image   
+
+def process_frame(frame):
+    gray = grayscale(frame)
+    blur = gaussian_blur(gray)
+    cany = canny(blur)
+    # vertices = 
+    # result = region_of_interest(cany, vertices)
+
+    rho = 2
+    theta = np.pi / 180 * 1
+    threshold = 10
+    min_line_len = 20
+    max_line_gap = 10
+    frm = result
+    lines = cv2.HoughLinesP(frm, rho, theta, threshold, np.array([]),
+                            min_line_len, max_line_gap)
+    # lines = process_lines(lines, frame)
+    line_frame = np.zeros((320, 240, 3), dtype=np.uint8)
+    draw_lines(line_frame, lines, thickness = 8)
+    result = weighted_img(line_image, frame)
+
+    return result
+
 
 while True:
 
     ret, frame = video.read()
+    # print(frame.dtype)
     # frame = cv2.flip(frame,-1) # flip image vertically
+    if ret:
+        original_frame = frame.copy()
+        gray_frame = grayscale(frame)
+        blur_frame = gaussian_blur(gray_frame, 5)
+        canny_frame = canny(blur_frame, 50, 150)
+        roi_frame = region_of_interest(canny_frame, vertices)
+        line_segments = detect_line_segments(roi_frame)
+        lane_lines = average_slope_intercept(frame, line_segments)
+        lane_lines_image = display_lines(original_frame, lane_lines)
+        steering_angle = get_steering_angle(original_frame, lane_lines)
+        heading_image = display_heading_line(lane_lines_image, steering_angle)
 
-    gray_frame = grayscale(frame)
-    blur_frame = gaussian_blur(gray_frame, 5)
-    canny_frame = canny(blur_frame, 50, 150)
-    cv2.imshow('original', canny_frame)
-    # cv2.imwrite('original.jpg', frame)
+        cv2.imshow('original', heading_image)
+        # output.write(canny_frame)
+        # cv2.imwrite('original.jpg', canny_frame)
 
 
-    key = cv2.waitKey(1)
-    if key == 27:
+        key = cv2.waitKey(1)
+        if key == 27:
+            break
+    else:
         break
     
 video.release()
+output.release()
 cv2.destroyAllWindows()
