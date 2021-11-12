@@ -16,10 +16,10 @@ output = cv2.VideoWriter('./output_video_from_file.mp4',
                          20, frame_size)
 
 
-vertices = np.array([[[0,240-65], [110,96], [320-110,96],
-                    [320, 240-65]]], dtype=np.int32)
-# vertices = np.array([[[0,240], [120,96], [320-120,96],
-#                     [320, 240]]], dtype=np.int32)
+# vertices = np.array([[[0,240-65], [110,96], [320-110,96],
+#                     [320, 240-65]]], dtype=np.int32)
+vertices = np.array([[[0,240], [110,120], [320-110,120],
+                    [320, 240]]], dtype=np.int32)
 
 def grayscale(frame):
     # Applies grayscale transorm to an image
@@ -89,7 +89,7 @@ def detect_line_segments(cropped_edges):
     theta = np.pi / 180  
     min_threshold = 10 
     line_segments = cv2.HoughLinesP(cropped_edges, rho, theta, min_threshold, 
-                                    np.array([]), minLineLength=5, maxLineGap=0)
+                                    np.array([]), minLineLength=30, maxLineGap=10)
     return line_segments
 
 def average_slope_intercept(frame, line_segments):
@@ -249,7 +249,7 @@ while True:
         original_frame = frame.copy()
         gray_frame = grayscale(frame)
         blur_frame = gaussian_blur(gray_frame, 5)
-        canny_frame = canny(blur_frame, 50, 150)
+        canny_frame = canny(blur_frame, 80, 240)
         roi_frame = region_of_interest(canny_frame, vertices)
         line_segments = detect_line_segments(roi_frame)
         lane_lines = average_slope_intercept(frame, line_segments)
@@ -257,7 +257,10 @@ while True:
         steering_angle = get_steering_angle(original_frame, lane_lines)
         heading_image = display_heading_line(lane_lines_image, steering_angle)
 
-        cv2.imshow('original', heading_image)
+        cv2.imshow('gray', gray_frame)
+        cv2.imshow('canny', canny_frame)
+        cv2.imshow('roi', roi_frame)
+        cv2.imshow('processed', heading_image)
         # output.write(canny_frame)
         # cv2.imwrite('original.jpg', canny_frame)
 
