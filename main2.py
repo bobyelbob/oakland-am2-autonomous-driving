@@ -189,8 +189,7 @@ def get_steering_angle(frame, lane_lines):
         y_offset = int(height / 2)
 
     elif len(lane_lines) == 0: # if no line is detected
-        x_offset = 0
-        y_offset = int(height / 2)
+        return 1000
 
     angle_to_mid_radian = math.atan(x_offset / y_offset)
     angle_to_mid_deg = int(angle_to_mid_radian * 180.0 / math.pi)
@@ -243,18 +242,27 @@ def process_frame(frame):
 
     return result
 
+def mapping(x, in_min, in_max, out_min, out_max):
+    # returs mapped value according to in and out values
+    return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 
-def right():
-    board.digital[in1].write(1)
-    board.digital[in2].write(0)
-    board.digital[in3].write(1)
-    board.digital[in4].write(0)
+def right(steering):
+    steer = mapping(steering, 100, 180, 0, 1)
+    enA.write(steer)
+    enB.write(1 - steer)
+#     board.digital[in1].write(1)
+#     board.digital[in2].write(0)
+#     board.digital[in3].write(1)
+#     board.digital[in4].write(0)
     
-def left():
-    board.digital[in1].write(0)
-    board.digital[in2].write(1)
-    board.digital[in3].write(0)
-    board.digital[in4].write(1)
+def left(steering):
+    steer = mapping(steering, 0, 80, 0, 1)
+    enA.write(1 - steer)
+    enB.write(steer)
+    # board.digital[in1].write(0)
+    # board.digital[in2].write(1)
+    # board.digital[in3].write(0)
+    # board.digital[in4].write(1)
     
 def reverse():
     board.digital[in1].write(0)
@@ -273,8 +281,8 @@ def stop():
     enB.write(0)
 
 def run():
-    enA.write(0.4)
-    enB.write(0.4)
+    enA.write(1)
+    enB.write(1)
 
 board = pyfirmata.Arduino('/dev/ttyUSB0')
 
@@ -289,6 +297,19 @@ enB = board.digital[5]
 enB.mode = pyfirmata.PWM
 
 def drive(steering_angle):
+    if steering_angle > 100:
+        # need to turn right
+        right(steering_angle)
+    elif steering_angle < 80
+        # need to turn left
+        left(steering_angle)
+    elif 80 <= steering_angle <= 100:
+        forward()
+        run()
+    elif steering_angle == 1000:
+        #lane line not detected
+        stop()
+      
     # if 80 <= steering_angle < 90:
     #     forward()
     #     run()
@@ -297,23 +318,23 @@ def drive(steering_angle):
     #     forward()
     #     run()
     #     print('forward')
-    if 80 <= steering_angle <= 100:
-        forward()
-        run()
-        print('forward')
-    elif steering_angle < 80:
-        left()
-        run()
-        print('left')
-    elif steering_angle > 100:
-        right()
-        run()
-        print('right')
+        # if 80 <= steering_angle <= 100:
+        #     forward()
+        #     run()
+        #     print('forward')
+        # elif steering_angle < 80:
+        #     left()
+        #     run()
+        #     print('left')
+        # elif steering_angle > 100:
+        #     right()
+        #     run()
+        #     print('right')
     # elif steering_angle == 90:
     #     stop()
     #     print(stop)
-    else:
-        stop()
+            # else:
+            #     stop()
 
 
 while True:
