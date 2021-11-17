@@ -2,6 +2,8 @@ import cv2
 import numpy as np
 import time
 import math
+# import motor_controller as mc
+import pyfirmata
 
 video = cv2.VideoCapture(0)
 video.set(cv2.CAP_PROP_FRAME_WIDTH, 320) # set width to 320 px
@@ -11,15 +13,15 @@ height = 240
 width = 320
 frame_size = (320,240)
 # Initialize video writer object
-output = cv2.VideoWriter('./output_video_from_file.mp4', 
+output = cv2.VideoWriter('./output_video.mp4', 
                          cv2.VideoWriter_fourcc(*'XVID'), 
                          20, frame_size)
 
 
 # vertices = np.array([[[0,240-65], [110,96], [320-110,96],
 #                     [320, 240-65]]], dtype=np.int32)
-vertices = np.array([[[0,240], [110,120], [320-110,120],
-                    [320, 240]]], dtype=np.int32)
+vertices = np.array([[[0,240],[0,240-65], [110,120], [320-110,120],
+                    [320, 240-65],[320, 240]]], dtype=np.int32)
 
 def grayscale(frame):
     # Applies grayscale transorm to an image
@@ -191,8 +193,10 @@ def get_steering_angle(frame, lane_lines):
         y_offset = int(height / 2)
 
     angle_to_mid_radian = math.atan(x_offset / y_offset)
-    angle_to_mid_deg = int(angle_to_mid_radian * 180.0 / math.pi)  
-    steering_angle = angle_to_mid_deg + 90 
+    angle_to_mid_deg = int(angle_to_mid_radian * 180.0 / math.pi)
+    print(angle_to_mid_deg)
+    steering_angle = angle_to_mid_deg + 90
+    print(steering_angle)
 
     return steering_angle
 
@@ -240,12 +244,85 @@ def process_frame(frame):
     return result
 
 
-while True:
+def right():
+    board.digital[in1].write(1)
+    board.digital[in2].write(0)
+    board.digital[in3].write(1)
+    board.digital[in4].write(0)
+    
+def left():
+    board.digital[in1].write(0)
+    board.digital[in2].write(1)
+    board.digital[in3].write(0)
+    board.digital[in4].write(1)
+    
+def reverse():
+    board.digital[in1].write(0)
+    board.digital[in2].write(1)
+    board.digital[in3].write(1)
+    board.digital[in4].write(0)
+        
+def forward():
+    board.digital[in1].write(1)
+    board.digital[in2].write(0)
+    board.digital[in3].write(0)
+    board.digital[in4].write(1)
 
+def stop():
+    enA.write(0)
+    enB.write(0)
+
+def run():
+    enA.write(0.4)
+    enB.write(0.4)
+
+board = pyfirmata.Arduino('/dev/ttyUSB0')
+
+led = 13
+in1 = 9
+in2 = 8
+in3 = 3
+in4 = 4
+enA = board.digital[10]
+enA.mode = pyfirmata.PWM
+enB = board.digital[5]
+enB.mode = pyfirmata.PWM
+
+def drive(steering_angle):
+    # if 80 <= steering_angle < 90:
+    #     forward()
+    #     run()
+    #     print('forward')
+    # elif 90 < steering_angle <= 100:
+    #     forward()
+    #     run()
+    #     print('forward')
+    if 80 <= steering_angle <= 100:
+        forward()
+        run()
+        print('forward')
+    elif steering_angle < 80:
+        left()
+        run()
+        print('left')
+    elif steering_angle > 100:
+        right()
+        run()
+        print('right')
+    # elif steering_angle == 90:
+    #     stop()
+    #     print(stop)
+    else:
+        stop()
+
+
+while True:
+    
     ret, frame = video.read()
     # print(frame.dtype)
     # frame = cv2.flip(frame,-1) # flip image vertically
     if ret:
+        
         original_frame = frame.copy()
         gray_frame = grayscale(frame)
         blur_frame = gaussian_blur(gray_frame, 5)
@@ -261,10 +338,12 @@ while True:
         cv2.imshow('canny', canny_frame)
         cv2.imshow('roi', roi_frame)
         cv2.imshow('processed', heading_image)
-        # output.write(canny_frame)
+        output.write(heading_image)
         # cv2.imwrite('original.jpg', canny_frame)
 
-
+        run()
+        drive(steering_angle)
+        
         key = cv2.waitKey(1)
         if key == 27:
             break
@@ -274,3 +353,4 @@ while True:
 video.release()
 output.release()
 cv2.destroyAllWindows()
+stop()
