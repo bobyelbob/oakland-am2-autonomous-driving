@@ -13,15 +13,23 @@ height = 240
 width = 320
 frame_size = (320,240)
 # Initialize video writer object
-output = cv2.VideoWriter('./output_video.mp4', 
+output = cv2.VideoWriter('./lines_video.mp4', 
+                         cv2.VideoWriter_fourcc(*'XVID'), 
+                         20, frame_size)
+gray_output = cv2.VideoWriter('./gray_video.mp4', 
+                         cv2.VideoWriter_fourcc(*'XVID'), 
+                         20, frame_size)
+canny_output = cv2.VideoWriter('./canny_video.mp4', 
+                         cv2.VideoWriter_fourcc(*'XVID'), 
+                         20, frame_size)
+roi_output = cv2.VideoWriter('./roi_video.mp4', 
                          cv2.VideoWriter_fourcc(*'XVID'), 
                          20, frame_size)
 
-
-# vertices = np.array([[[0,240-65], [110,96], [320-110,96],
-#                     [320, 240-65]]], dtype=np.int32)
-vertices = np.array([[[0,240],[0,240-65], [110,120], [320-110,120],
-                    [320, 240-65],[320, 240]]], dtype=np.int32)
+vertices = np.array([[[0,240-73], [77,110], [320-77,110],
+                    [320, 240-73]]], dtype=np.int32)
+# vertices = np.array([[[0,240],[0,240-65], [110,120], [320-110,120],
+#                     [320, 240-65],[320, 240]]], dtype=np.int32)
 
 def grayscale(frame):
     # Applies grayscale transorm to an image
@@ -246,21 +254,21 @@ def mapping(x, in_min, in_max, out_min, out_max):
     # returs mapped value according to in and out values
     return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 
-def right(steering):
-    steer = mapping(steering, 100, 180, 0, 1)
-    enA.write(steer)
-    enB.write(1 - steer)
-#     board.digital[in1].write(1)
-#     board.digital[in2].write(0)
-#     board.digital[in3].write(1)
-#     board.digital[in4].write(0)
+def right():
+    # steer = mapping(steering, 100, 180, 0.4, 0.6)
+    enA.write(0.5)
+    enB.write(0.35)
+    # board.digital[in1].write(1)
+    # board.digital[in2].write(0)
+    # board.digital[in3].write(0)
+    # board.digital[in4].write(0)
     
-def left(steering):
-    steer = mapping(steering, 0, 80, 0, 1)
-    enA.write(1 - steer)
-    enB.write(steer)
+def left():
+    # steer = mapping(steering, 0, 80, 0.4, 0.6)
+    enA.write(0.35)
+    enB.write(0.5)
     # board.digital[in1].write(0)
-    # board.digital[in2].write(1)
+    # board.digital[in2].write(0)
     # board.digital[in3].write(0)
     # board.digital[in4].write(1)
     
@@ -281,8 +289,8 @@ def stop():
     enB.write(0)
 
 def run():
-    enA.write(1)
-    enB.write(1)
+    enA.write(0.35)
+    enB.write(0.35)
 
 board = pyfirmata.Arduino('/dev/ttyUSB0')
 
@@ -297,19 +305,28 @@ enB = board.digital[5]
 enB.mode = pyfirmata.PWM
 
 def drive(steering_angle):
-    if steering_angle > 100:
+    right_bound = 95
+    left_bound = 85
+    if right_bound < steering_angle <= 110:#180:
         # need to turn right
-        right(steering_angle)
-    elif steering_angle < 80
+        # stop()
+        # run()
+        forward()
+        right()
+    elif 70 <= steering_angle < left_bound:
         # need to turn left
-        left(steering_angle)
-    elif 80 <= steering_angle <= 100:
+        # stop()
+        # run()
+        forward()
+        left()
+    elif left_bound <= steering_angle <= right_bound:
         forward()
         run()
     elif steering_angle == 1000:
         #lane line not detected
         stop()
-      
+    else:
+        stop()      
     # if 80 <= steering_angle < 90:
     #     forward()
     #     run()
@@ -356,8 +373,11 @@ while True:
         heading_image = display_heading_line(lane_lines_image, steering_angle)
 
         cv2.imshow('gray', gray_frame)
+        gray_output.write(gray_frame)
         cv2.imshow('canny', canny_frame)
+        canny_output.write(canny_frame)
         cv2.imshow('roi', roi_frame)
+        roi_output.write(roi_frame)
         cv2.imshow('processed', heading_image)
         output.write(heading_image)
         # cv2.imwrite('original.jpg', canny_frame)
@@ -373,5 +393,8 @@ while True:
     
 video.release()
 output.release()
+gray_output.release()
+canny_output.release()
+roi_output.release()
 cv2.destroyAllWindows()
 stop()
