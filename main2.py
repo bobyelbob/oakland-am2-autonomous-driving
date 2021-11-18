@@ -292,6 +292,35 @@ def run():
     enA.write(0.35)
     enB.write(0.35)
 
+def checkDistance():
+    #Set follow distance
+    followDist = 6 #inches
+    #Set Trigger to HIGH
+    board.digital[Trigger].write(1)
+    #After 0.01 ms set Trigger to LOW
+    time.sleep(0.00001)
+    board.digital[Trigger].write(0)
+    
+    startTime = time.time()
+    stopTime = time.time()
+    
+    #Save Start Time
+    while board.digital[Echo].read() == 0:
+        startTime = time.time()
+    
+    #Save time of arrival
+    while board.digital[Echo].read() == 1:
+        stopTime = time.time()
+        
+    #Calculate time diff
+    timeElapsed = stopTime - startTime
+    
+    #multiply by sonic speed then divide by 2 b/c there and back
+    dist = ((timeElapsed * 34300) / 2) / 2.54 #dived by 2.54 to get in
+    
+    while dist<followDist:
+        stop()
+
 board = pyfirmata.Arduino('/dev/ttyUSB0')
 
 led = 13
@@ -303,6 +332,8 @@ enA = board.digital[10]
 enA.mode = pyfirmata.PWM
 enB = board.digital[5]
 enB.mode = pyfirmata.PWM
+Trigger = 11
+Echo = 12
 
 def drive(steering_angle):
     right_bound = 95
@@ -383,6 +414,7 @@ while True:
         # cv2.imwrite('original.jpg', canny_frame)
 
         run()
+        checkDistance()
         drive(steering_angle)
         
         key = cv2.waitKey(1)
