@@ -2,8 +2,11 @@ import cv2
 import numpy as np
 import time
 import math
+import serial
 # import motor_controller as mc
-import pyfirmata
+# import pyfirmata
+
+arduino = serial.Serial(port='/dev/ttyUSB0', baudrate=115200, timeout=.1)
 
 video = cv2.VideoCapture(0)
 video.set(cv2.CAP_PROP_FRAME_WIDTH, 320) # set width to 320 px
@@ -26,10 +29,10 @@ roi_output = cv2.VideoWriter('./roi_video.mp4',
                          cv2.VideoWriter_fourcc(*'XVID'), 
                          20, frame_size)
 
-vertices = np.array([[[0,240-73], [77,110], [320-77,110],
-                    [320, 240-73]]], dtype=np.int32)
-# vertices = np.array([[[0,240],[0,240-65], [110,120], [320-110,120],
-#                     [320, 240-65],[320, 240]]], dtype=np.int32)
+# vertices = np.array([[[0,240-73], [77,110], [320-77,110],
+#                     [320, 240-73]]], dtype=np.int32)
+vertices = np.array([[[0,240],[0,240-65], [110,120], [320-110,120],
+                    [320, 240-65],[320, 240]]], dtype=np.int32)
 
 def grayscale(frame):
     # Applies grayscale transorm to an image
@@ -63,21 +66,6 @@ def region_of_interest(frame, vertices):
     masked_image = cv2.bitwise_and(frame, mask)
     return masked_image
 
-def region_of_interest_2(frame, vertices):
-    # Defining a region of interest mask
-    mask=np.zeros_like(frame)
-    
-    if len(frame.shape) > 2:
-        channel_count = frame.shape[2]
-        ignore_mask_color = (255,) * channel_count
-    else:
-        ignore_mask_color = 255
-    
-    cv2.fillPoly(mask, vertices, ignore_mask_color)
-    
-    masked_image = cv2.bitwise_and(frame, mask)
-    return masked_image
-
 def draw_lines(frame, lines, color=[255,0,0], thickness=2):
     for line in lines:
         for x1,y1,x2,y2 in line:
@@ -106,7 +94,7 @@ def average_slope_intercept(frame, line_segments):
     lane_lines = []
 
     if line_segments is None:
-        print("no line segment detected")
+        # print("no line segment detected")
         return lane_lines
     
     # height, width,_ = frame.shape
@@ -122,7 +110,7 @@ def average_slope_intercept(frame, line_segments):
     for line_segment in line_segments:
         for x1, y1, x2, y2 in line_segment:
             if x1 == x2:
-                print("skipping vertical lines (slope = infinity)")
+                # print("skipping vertical lines (slope = infinity)")
                 continue
 
             fit = np.polyfit((x1, x2), (y1, y2), 1)
@@ -201,7 +189,7 @@ def get_steering_angle(frame, lane_lines):
 
     angle_to_mid_radian = math.atan(x_offset / y_offset)
     angle_to_mid_deg = int(angle_to_mid_radian * 180.0 / math.pi)
-    print(angle_to_mid_deg)
+    # print(angle_to_mid_deg)
     steering_angle = angle_to_mid_deg + 90
     print(steering_angle)
 
@@ -250,114 +238,114 @@ def process_frame(frame):
 
     return result
 
-def mapping(x, in_min, in_max, out_min, out_max):
-    # returs mapped value according to in and out values
-    return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+# def mapping(x, in_min, in_max, out_min, out_max):
+#     # returs mapped value according to in and out values
+#     return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 
-def right():
-    # steer = mapping(steering, 100, 180, 0.4, 0.6)
-    enA.write(0.5)
-    enB.write(0.35)
+# def right():
+#     # steer = mapping(steering, 100, 180, 0.4, 0.6)
+#     enA.write(0.5)
+#     enB.write(0.35)
     # board.digital[in1].write(1)
     # board.digital[in2].write(0)
     # board.digital[in3].write(0)
     # board.digital[in4].write(0)
     
-def left():
-    # steer = mapping(steering, 0, 80, 0.4, 0.6)
-    enA.write(0.35)
-    enB.write(0.5)
-    # board.digital[in1].write(0)
-    # board.digital[in2].write(0)
-    # board.digital[in3].write(0)
-    # board.digital[in4].write(1)
+# def left():
+#     # steer = mapping(steering, 0, 80, 0.4, 0.6)
+#     enA.write(0.35)
+#     enB.write(0.5)
+#     # board.digital[in1].write(0)
+#     # board.digital[in2].write(0)
+#     # board.digital[in3].write(0)
+#     # board.digital[in4].write(1)
     
-def reverse():
-    board.digital[in1].write(0)
-    board.digital[in2].write(1)
-    board.digital[in3].write(1)
-    board.digital[in4].write(0)
+# def reverse():
+#     board.digital[in1].write(0)
+#     board.digital[in2].write(1)
+#     board.digital[in3].write(1)
+#     board.digital[in4].write(0)
         
-def forward():
-    board.digital[in1].write(1)
-    board.digital[in2].write(0)
-    board.digital[in3].write(0)
-    board.digital[in4].write(1)
+# def forward():
+#     board.digital[in1].write(1)
+#     board.digital[in2].write(0)
+#     board.digital[in3].write(0)
+#     board.digital[in4].write(1)
 
-def stop():
-    enA.write(0)
-    enB.write(0)
+# def stop():
+#     enA.write(0)
+#     enB.write(0)
 
-def run():
-    enA.write(0.35)
-    enB.write(0.35)
+# def run():
+#     enA.write(1)
+#     enB.write(1)
 
-def checkDistance():
-    #Set follow distance
-    followDist = 6 #inches
-    #Set Trigger to HIGH
-    board.digital[Trigger].write(1)
-    #After 0.01 ms set Trigger to LOW
-    time.sleep(0.00001)
-    board.digital[Trigger].write(0)
+# def checkDistance():
+#     #Set follow distance
+#     followDist = 6 #inches
+#     #Set Trigger to HIGH
+#     board.digital[Trigger].write(1)
+#     #After 0.01 ms set Trigger to LOW
+#     time.sleep(0.00001)
+#     board.digital[Trigger].write(0)
     
-    startTime = time.time()
-    stopTime = time.time()
+#     startTime = time.time()
+#     stopTime = time.time()
     
-    #Save Start Time
-    while board.digital[Echo].read() == 0:
-        startTime = time.time()
+#     #Save Start Time
+#     while board.digital[Echo].read() == 0:
+#         startTime = time.time()
     
-    #Save time of arrival
-    while board.digital[Echo].read() == 1:
-        stopTime = time.time()
+#     #Save time of arrival
+#     while board.digital[Echo].read() == 1:
+#         stopTime = time.time()
         
-    #Calculate time diff
-    timeElapsed = stopTime - startTime
+#     #Calculate time diff
+#     timeElapsed = stopTime - startTime
     
-    #multiply by sonic speed then divide by 2 b/c there and back
-    dist = ((timeElapsed * 34300) / 2) / 2.54 #dived by 2.54 to get in
+#     #multiply by sonic speed then divide by 2 b/c there and back
+#     dist = ((timeElapsed * 34300) / 2) / 2.54 #dived by 2.54 to get in
     
-    while dist<followDist:
-        stop()
+#     while dist<followDist:
+#         stop()
 
-board = pyfirmata.Arduino('/dev/ttyUSB0')
+# board = pyfirmata.Arduino('/dev/ttyUSB0')
 
-led = 13
-in1 = 9
-in2 = 8
-in3 = 3
-in4 = 4
-enA = board.digital[10]
-enA.mode = pyfirmata.PWM
-enB = board.digital[5]
-enB.mode = pyfirmata.PWM
-Trigger = 11
-Echo = 12
+# led = 13
+# in1 = 9
+# in2 = 8
+# in3 = 3
+# in4 = 4
+# enA = board.digital[10]
+# enA.mode = pyfirmata.PWM
+# enB = board.digital[5]
+# enB.mode = pyfirmata.PWM
+# Trigger = 11
+# Echo = 12
 
-def drive(steering_angle):
-    right_bound = 95
-    left_bound = 85
-    if right_bound < steering_angle <= 110:#180:
-        # need to turn right
-        # stop()
-        # run()
-        forward()
-        right()
-    elif 70 <= steering_angle < left_bound:
-        # need to turn left
-        # stop()
-        # run()
-        forward()
-        left()
-    elif left_bound <= steering_angle <= right_bound:
-        forward()
-        run()
-    elif steering_angle == 1000:
-        #lane line not detected
-        stop()
-    else:
-        stop()      
+# def drive(steering_angle):
+#     right_bound = 95
+#     left_bound = 85
+#     if right_bound < steering_angle <= 110:#180:
+#         # need to turn right
+#         # stop()
+#         # run()
+#         forward()
+#         right()
+#     elif 70 <= steering_angle < left_bound:
+#         # need to turn left
+#         # stop()
+#         # run()
+#         forward()
+#         left()
+#     elif left_bound <= steering_angle <= right_bound:
+#         forward()
+#         run()
+#     elif steering_angle == 1000:
+#         #lane line not detected
+#         stop()
+#     else:
+#         stop()      
     # if 80 <= steering_angle < 90:
     #     forward()
     #     run()
@@ -401,21 +389,27 @@ while True:
         lane_lines = average_slope_intercept(frame, line_segments)
         lane_lines_image = display_lines(original_frame, lane_lines)
         steering_angle = get_steering_angle(original_frame, lane_lines)
+
+        arduino.write(bytes(str(steering_angle), 'utf-8'))
+        time.sleep(0.05)
+        print(arduino.readline().decode('utf-8').rstrip())
+
         heading_image = display_heading_line(lane_lines_image, steering_angle)
 
         cv2.imshow('gray', gray_frame)
-        gray_output.write(gray_frame)
+        # gray_output.write(gray_frame)
         cv2.imshow('canny', canny_frame)
-        canny_output.write(canny_frame)
+        # canny_output.write(canny_frame)
         cv2.imshow('roi', roi_frame)
-        roi_output.write(roi_frame)
+        # roi_output.write(roi_frame)
         cv2.imshow('processed', heading_image)
         output.write(heading_image)
         # cv2.imwrite('original.jpg', canny_frame)
 
-        run()
-        checkDistance()
-        drive(steering_angle)
+ 
+        # run()
+        # checkDistance()
+        # drive(steering_angle)
         
         key = cv2.waitKey(1)
         if key == 27:
@@ -425,8 +419,8 @@ while True:
     
 video.release()
 output.release()
-gray_output.release()
-canny_output.release()
-roi_output.release()
+# gray_output.release()
+# canny_output.release()
+# roi_output.release()
 cv2.destroyAllWindows()
-stop()
+# stop()
